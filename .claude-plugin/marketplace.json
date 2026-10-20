@@ -1,0 +1,15 @@
+{
+  "name": "tngo-codex",
+  "owner": {
+    "name": "trungnt13"
+  },
+  "plugins": [
+    {
+      "name": "codex",
+      "source": "./"
+    }
+  ],
+  "metadata": {
+    "description": "OpenAI models through Codex as native Claude Code subagents."
+  }
+}

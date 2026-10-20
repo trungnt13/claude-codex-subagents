@@ -1,0 +1,46 @@
+{
+  "name": "codex",
+  "version": "0.1.0",
+  "description": "OpenAI models through Codex as native Claude Code subagent types; Codex runs each turn with its own tools.",
+  "author": {
+    "name": "Trung Ng."
+  },
+  "userConfig": {
+    "solModel": {
+      "type": "string",
+      "title": "codex:sol model",
+      "default": "gpt-6.1-sol",
+      "description": "Codex model for codex:sol (passed as -m)."
+    },
+    "solProfile": {
+      "type": "string",
+      "title": "codex:sol Codex profile",
+      "default": "",
+      "description": "Codex profile for codex:sol (passed as -p); empty uses the base Codex config."
+    },
+    "astraModel": {
+      "type": "string",
+      "title": "codex:astra model",
+      "default": "gpt-6-astra",
+      "description": "Codex model for codex:astra (passed as -m)."
+    },
+    "astraProfile": {
+      "type": "string",
+      "title": "codex:astra Codex profile",
+      "default": "",
+      "description": "Codex profile for codex:astra (passed as -p); empty uses the base Codex config."
+    },
+    "instructions": {
+      "type": "string",
+      "title": "Subagent instructions",
+      "default": "You are a subagent. Execute only the assigned task; do not delegate. Preserve unrelated changes and follow applicable workspace instructions. Put questions, blockers, and decisions outside your scope in your final reply to the parent agent. Report the result, verification performed, and remaining uncertainty concisely.",
+      "description": "Codex developer instructions for every Codex subagent turn. Nonblank."
+    },
+    "codexArgs": {
+      "type": "string",
+      "title": "Extra codex exec arguments",
+      "default": "[\"--disable\", \"multi_agent\"]",
+      "description": "JSON array of strings added to every codex exec call, such as [\"-c\", \"key=value\"] config overrides."
+    }
+  }
+}

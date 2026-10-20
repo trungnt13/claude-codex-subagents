@@ -4,10 +4,12 @@ import type { EngineInterface, Register, SessionMessage, TurnStepChunk, TurnStep
 
 type CodexAgentSettings = { model: string; profile: string; instructions: string; extraArgs: readonly string[] }
 
-// When to delegate to each type, `<plugin>:<name>`; its model and profile come from the `<name>Model` and `<name>Profile` options.
+// When to delegate to each type, `<plugin>:<name>`; its model, profile, and optional instructions come from the
+// `<name>Model`, `<name>Profile`, and `<name>Instructions` options.
 const CODEX_AGENT_USES: Record<string, string> = {
   sol: 'most scoped coding, investigation, and verification tasks',
   astra: 'consequential planning, deep debugging, or architectural uncertainty',
+  reviewer: 'independent review of requirements, implementation history, and regressions; it does not edit reviewed files',
 }
 // The initial effort of every type; each step's effort, adapted or not, becomes Codex's model_reasoning_effort.
 const INITIAL_EFFORT = 'high'
@@ -151,7 +153,8 @@ function readAgentSettings(options: Record<string, unknown>): Map<string, CodexA
     Object.keys(CODEX_AGENT_USES).map(name => {
       const model = readStringOption(options, `${name}Model`)
       if (!model) throw new Error(`codex: option ${name}Model must not be blank`)
-      return [name, { model, profile: readStringOption(options, `${name}Profile`), instructions, extraArgs }]
+      const typeInstructions = readStringOption(options, `${name}Instructions`) || instructions
+      return [name, { model, profile: readStringOption(options, `${name}Profile`), instructions: typeInstructions, extraArgs }]
     }),
   )
 }

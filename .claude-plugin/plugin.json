@@ -1,6 +1,6 @@
 {
   "name": "codex",
-  "version": "0.2.1",
+  "version": "0.3.0",
   "description": "OpenAI models through Codex as native Claude Code subagent types; Codex runs each turn with its own tools.",
   "author": {
     "name": "Trung Ng."
@@ -29,6 +29,24 @@
       "title": "codex:astra Codex profile",
       "default": "",
       "description": "Codex profile for codex:astra (passed as -p); empty uses the base Codex config."
+    },
+    "reviewerModel": {
+      "type": "string",
+      "title": "codex:reviewer model",
+      "default": "gpt-6.1-sol",
+      "description": "Codex model for codex:reviewer (passed as -m), shown as the agent's model. Nonblank."
+    },
+    "reviewerProfile": {
+      "type": "string",
+      "title": "codex:reviewer Codex profile",
+      "default": "",
+      "description": "Codex profile for codex:reviewer (passed as -p); empty uses the base Codex config."
+    },
+    "reviewerInstructions": {
+      "type": "string",
+      "title": "codex:reviewer instructions",
+      "default": "You are an independent reviewer. Trace the original requirements and the consequential implementation steps, then question added code, complex logic, ambiguity, and unresolved assumptions. Do not edit reviewed files, commit, change refs, or modify remote state. Do not delegate. Report findings ranked by severity with file and line evidence.",
+      "description": "Codex developer instructions for codex:reviewer, in place of instructions; empty uses instructions."
     },
     "instructions": {
       "type": "string",

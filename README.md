@@ -20,7 +20,8 @@ OpenAI models, run by the Codex CLI, as native Claude Code subagent types. Claud
 - Agent types, chosen by `subagent_type` and registered by the hooks module at session start:
   - `codex:sol`: `gpt-6.1-sol` by default; most scoped coding, investigation, and verification tasks.
   - `codex:astra`: `gpt-6-astra` by default; consequential planning, deep debugging, or architectural uncertainty.
-  - Change models or add a Codex profile with the `solModel`, `solProfile`, `astraModel`, and `astraProfile` options.
+  - `codex:reviewer`: `gpt-6.1-sol` by default; independent review, told not to edit reviewed files (an instruction, not a sandbox).
+  - Change models or add a Codex profile with the `<type>Model` and `<type>Profile` options (`solModel`, `astraProfile`, ...).
   - Each type's model is its OpenAI model, shown by Claude Code and named in the type's listing; its initial effort is `high`.
 - No Claude fallback: no model request of these types reaches Anthropic.
   - A spawn is refused when `codex --version` fails.
@@ -35,6 +36,7 @@ OpenAI models, run by the Codex CLI, as native Claude Code subagent types. Claud
   - A failed turn answers `Codex subagent failed: <reason>`.
 - Options (`/plugin` config menu, or `claude plugin configure codex --values-stdin` with a JSON object of single-line strings):
   - `instructions`: Codex developer instructions for every turn; a generic subagent brief by default.
+  - `reviewerInstructions`: replaces `instructions` for `codex:reviewer`; a generic reviewer brief by default.
   - `codexArgs`: JSON array of extra `codex exec` arguments, `["--disable", "multi_agent"]` by default; add `["-c", "key=value"]` config overrides here.
 - Limitations:
   - Claude Code's permission mode and tool hooks do not reach Codex; Codex's own sandbox and approval settings apply, and `codex exec` cannot ask for approval.

@@ -1,6 +1,6 @@
 {
   "name": "codex",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "OpenAI models through Codex as native Claude Code subagent types; Codex runs each turn with its own tools.",
   "author": {
     "name": "Trung Ng."
@@ -10,7 +10,7 @@
       "type": "string",
       "title": "codex:sol model",
       "default": "gpt-6.1-sol",
-      "description": "Codex model for codex:sol (passed as -m)."
+      "description": "Codex model for codex:sol (passed as -m), shown as the agent's model. Nonblank."
     },
     "solProfile": {
       "type": "string",
@@ -22,7 +22,7 @@
       "type": "string",
       "title": "codex:astra model",
       "default": "gpt-6-astra",
-      "description": "Codex model for codex:astra (passed as -m)."
+      "description": "Codex model for codex:astra (passed as -m), shown as the agent's model. Nonblank."
     },
     "astraProfile": {
       "type": "string",

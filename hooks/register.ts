@@ -4,8 +4,15 @@ import type { EngineInterface, Register, SessionMessage, TurnStepChunk, TurnStep
 
 type CodexAgentSettings = { model: string; profile: string; instructions: string; extraArgs: readonly string[] }
 
-// The agent file names in ../agents; each type is `<plugin>:<name>` and reads its model and profile from `<name>Model`/`<name>Profile`.
-const CODEX_AGENT_NAMES = ['sol', 'astra'] as const
+// When to delegate to each type, `<plugin>:<name>`; its model and profile come from the `<name>Model` and `<name>Profile` options.
+const CODEX_AGENT_USES: Record<string, string> = {
+  sol: 'most scoped coding, investigation, and verification tasks',
+  astra: 'consequential planning, deep debugging, or architectural uncertainty',
+}
+// The initial effort of every type; each step's effort, adapted or not, becomes Codex's model_reasoning_effort.
+const INITIAL_EFFORT = 'high'
+// Registered agent types need a system prompt; no request ever carries it, since the turn.step hook answers every step.
+const PLACEHOLDER_PROMPT = 'Codex answers every turn of this agent type through the codex plugin; this prompt is never sent to a model.'
 
 const CODEX_EFFORTS = new Set(['low', 'medium', 'high', 'xhigh', 'max'])
 
@@ -127,7 +134,7 @@ function readStringOption(options: Record<string, unknown>, name: string): strin
   return value.trim()
 }
 
-// An invalid option fails the module load, so the agent types answer with their not-loaded notice instead of a guessed command.
+// An invalid option fails the module load, so no agent type is registered and spawning one fails.
 function readAgentSettings(options: Record<string, unknown>): Map<string, CodexAgentSettings> {
   const instructions = readStringOption(options, 'instructions')
   if (!instructions) throw new Error('codex: option instructions must not be blank')
@@ -136,10 +143,11 @@ function readAgentSettings(options: Record<string, unknown>): Map<string, CodexA
     throw new Error('codex: option codexArgs must be a JSON array of strings')
   }
   return new Map(
-    CODEX_AGENT_NAMES.map(name => [
-      name,
-      { model: readStringOption(options, `${name}Model`), profile: readStringOption(options, `${name}Profile`), instructions, extraArgs },
-    ]),
+    Object.keys(CODEX_AGENT_USES).map(name => {
+      const model = readStringOption(options, `${name}Model`)
+      if (!model) throw new Error(`codex: option ${name}Model must not be blank`)
+      return [name, { model, profile: readStringOption(options, `${name}Profile`), instructions, extraArgs }]
+    }),
   )
 }
 
@@ -147,6 +155,32 @@ function readAgentSettings(options: Record<string, unknown>): Map<string, CodexA
 
 export const register: Register = (on, options) => {
   const settingsByName = readAgentSettings(options)
+
+  // Registered here, not as agent files: a module that fails to load leaves no type that a Claude model could answer.
+  on('session.start', async ($, e, next) => {
+    const started = await next(e)
+    for (const [name, settings] of settingsByName) {
+      await $.agent.register({
+        name,
+        description: `OpenAI ${settings.model} through Codex, which runs its own tools and sandbox. Use for ${CODEX_AGENT_USES[name]}; SendMessage continues its thread.`,
+        prompt: PLACEHOLDER_PROMPT,
+        model: settings.model,
+        effort: INITIAL_EFFORT,
+        tools: [],
+        omitClaudeMd: true,
+      })
+    }
+    return started
+  })
+
+  // A spawn fails when Codex cannot run, rather than starting an agent whose first turn would fail.
+  on('agent.spawn', async ($, e, next) => {
+    const [plugin, name] = e.subagentType.split(':')
+    if (plugin !== $.plugin.name || name === undefined || !settingsByName.has(name)) return next(e)
+    const probe = await $.process.run(['codex', '--version']).catch((error: unknown) => ({ exitCode: -1, stderr: String(error) }))
+    if (probe.exitCode !== 0) return { deny: `${e.subagentType}: codex cannot run: ${probe.stderr.trim()}` }
+    return next(e)
+  }).catch(($, e, next) => (next.called ? next(e) : { deny: `${e.subagentType}: codex spawn check failed: ${next.error.message ?? next.error.kind}` }))
 
   on('turn.step', async function* ($, e, next) {
     if (e.agentId === undefined) return yield* next(e)

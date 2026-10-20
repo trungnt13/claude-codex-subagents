@@ -27,6 +27,7 @@ OpenAI models, run by the Codex CLI, as native Claude Code subagent types. Claud
   - A hooks module that fails to load (an invalid option included) registers no type, so the spawn fails as an unknown agent type.
 - Each turn runs `codex exec --json` in the subagent's working directory.
   - The first turn starts a Codex thread; later turns (SendMessage) run `codex exec resume <thread>` with only the new message.
+  - A SendMessage that arrives while a Codex turn runs is delivered as the next turn, once the current one ends; `codex exec` cannot be steered mid-turn.
   - Thread ids persist per agent in the plugin store, so resuming survives reloads and restarts.
   - Without a usable thread (store lost, resume failed), the next turn starts a new thread with the conversation replayed as text.
   - Each step's Claude effort (`low` to `max`) becomes `model_reasoning_effort`; other values keep the Codex config's.

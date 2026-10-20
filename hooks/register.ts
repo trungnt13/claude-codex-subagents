@@ -28,6 +28,9 @@ type StoredThread = { threadId: string; updatedAt: number }
 // ---- Agent and thread lookup ----
 
 const agentTypeById = new Map<string, string>()
+// User rows appended to each subagent's conversation since its last step. A message delivered while a Codex turn
+// runs is appended as that turn ends and is not yet in `$.session.messages` when the next step reads it.
+const pendingTextsByAgentId = new Map<string, string[]>()
 
 function findCodexAgentSettings(
   settingsByName: ReadonlyMap<string, CodexAgentSettings>,
@@ -58,12 +61,14 @@ async function saveThreadId($: EngineInterface, agentId: string, threadId: strin
 
 // ---- Prompt and command ----
 
-// Rows, not the API form: the API form also renders the session's attachments (environment, instructions) as text.
-// A resumed thread already holds the history, so it gets only the user rows after the last answer; without a stored
-// thread (store lost, resume failed), earlier rows are replayed as text so a new thread keeps the context.
-function composeCodexPrompt(messages: readonly SessionMessage[], hasThread: boolean): string {
+// A resumed thread already holds the history, so it gets only the new messages: the appended user rows, or the user
+// rows after the last answer when none were seen (a reload lost them). Rows, not the API form: the API form also
+// renders the session's attachments (environment, instructions) as text. Without a stored thread (store lost, resume
+// failed), earlier rows are replayed as text so a new thread keeps the context.
+function composeCodexPrompt(messages: readonly SessionMessage[], appendedTexts: readonly string[], hasThread: boolean): string {
   const lastAnswerIndex = messages.map(message => message.role).lastIndexOf('assistant')
-  const pending = messages.slice(lastAnswerIndex + 1).map(message => message.text.trim()).filter(Boolean).join('\n\n')
+  const newTexts = appendedTexts.length > 0 ? appendedTexts : messages.slice(lastAnswerIndex + 1).map(message => message.text)
+  const pending = newTexts.map(text => text.trim()).filter(Boolean).join('\n\n')
   if (!pending || hasThread || lastAnswerIndex < 0) return pending
   const history = messages.slice(0, lastAnswerIndex + 1).map(message => `[${message.role}]\n${message.text.trim()}`).join('\n\n')
   return `Earlier conversation of this task (its Codex thread is unavailable):\n\n${history}\n\nNew message:\n\n${pending}`
@@ -173,6 +178,14 @@ export const register: Register = (on, options) => {
     return started
   })
 
+  on('session.append', ($, e, next) => {
+    if (e.agentId !== undefined && e.message.type === 'user' && e.message.role === 'user') {
+      const text = e.message.content.flatMap(block => (block.type === 'text' && typeof block.text === 'string' ? [block.text] : [])).join('\n\n')
+      pendingTextsByAgentId.set(e.agentId, [...(pendingTextsByAgentId.get(e.agentId) ?? []), text])
+    }
+    return next(e)
+  })
+
   // A spawn fails when Codex cannot run, rather than starting an agent whose first turn would fail.
   on('agent.spawn', async ($, e, next) => {
     const [plugin, name] = e.subagentType.split(':')
@@ -184,6 +197,8 @@ export const register: Register = (on, options) => {
 
   on('turn.step', async function* ($, e, next) {
     if (e.agentId === undefined) return yield* next(e)
+    const appendedTexts = pendingTextsByAgentId.get(e.agentId) ?? []
+    pendingTextsByAgentId.delete(e.agentId)
     await loadAgentType($, e.agentId)
     const settings = findCodexAgentSettings(settingsByName, $.plugin.name, e.agentId)
     if (settings === undefined) return yield* next(e)
@@ -192,7 +207,7 @@ export const register: Register = (on, options) => {
     const messages = await $.session.messages({ agentId })
     if (!Array.isArray(messages)) throw new Error(`cannot read subagent ${agentId}: ${messages.deny}`)
     let threadId = await readThreadId($, agentId)
-    const prompt = composeCodexPrompt(messages, threadId !== undefined)
+    const prompt = composeCodexPrompt(messages, appendedTexts, threadId !== undefined)
     if (!prompt) return yield* answerStep(e, 'No new message reached the Codex subagent; no Codex turn ran.')
     const cwd = await $.session.cwd()
 

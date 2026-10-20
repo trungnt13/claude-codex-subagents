@@ -40,3 +40,18 @@ OpenAI models, run by the Codex CLI, as native Claude Code subagent types. Claud
   - Claude Code's permission mode and tool hooks do not reach Codex; Codex's own sandbox and approval settings apply, and `codex exec` cannot ask for approval.
   - Claude Code shows zero tool uses and no token usage for these agents; reporting OpenAI tokens would make Claude Code price and compact them as Claude tokens.
   - Each turn starts a new `codex exec` process.
+
+## Notes
+
+**Why `codex exec`, not the app-server daemon.** `codex exec` embeds the app-server in its own process, private to one turn; Codex's shared app-server daemon accepts requests from any local client.
+
+- Kept `codex exec` for isolation and predictability:
+  - one agent's crash or hang affects only that agent;
+  - every turn runs the installed CLI, not whatever build the daemon started with;
+  - nothing is shared with interactive Codex sessions;
+  - no daemon needs to be running.
+- Given up, until the daemon is used:
+  - mid-turn steering (`turn/steer`): a message sent during a turn waits for the next turn;
+  - graceful stops (`turn/interrupt`): stopping an agent kills its process;
+  - reusing a warm server across turns, which may start faster (not measured).
+- Revisit if steering long turns becomes common, clean interrupts matter, or measured per-turn startup is a large share of short turns.
